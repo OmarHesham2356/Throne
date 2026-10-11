@@ -859,6 +859,8 @@ QToolButton::menu-indicator {
     <addaction name="separator"/>
     <addaction name="actionUrl_Test_Group"/>
     <addaction name="actionSpeedtest_Group"/>
+    <addaction name="actionSpeedscan_Available"/>
+    <addaction name="actionSpeedscan_Stored"/>
     <addaction name="actionResolve_Out_IP"/>
     <addaction name="menu_resolve_domain"/>
     <addaction name="menu_clear_test_result"/>
@@ -1307,6 +1309,22 @@ QToolButton::menu-indicator {
    </property>
    <property name="shortcut">
     <string notr="true">Ctrl+Alt+P</string>
+   </property>
+  </action>
+  <action name="actionSpeedscan_Available">
+   <property name="text">
+    <string>Speed-scan available (fastest first)</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Alt+S</string>
+   </property>
+  </action>
+  <action name="actionSpeedscan_Stored">
+   <property name="text">
+    <string>Speed-scan pinged servers (fast, no url test)</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Alt+F</string>
    </property>
   </action>
   <action name="actionHide_window">

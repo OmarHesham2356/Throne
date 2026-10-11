@@ -322,9 +322,11 @@ void MainWindow::refresh_proxy_list_column_size() {
             hHeader->setSectionResizeMode(ProfilesTableModel::ColName, QHeaderView::Stretch);
             hHeader->setSectionResizeMode(ProfilesTableModel::ColTestResult, QHeaderView::ResizeToContents);
             hHeader->setSectionResizeMode(ProfilesTableModel::ColTraffic, QHeaderView::ResizeToContents);
+            hHeader->setSectionResizeMode(ProfilesTableModel::ColSpeed, QHeaderView::ResizeToContents);
             // ResizeToContents only measures on-screen rows, so pin these or they jitter while scrolling.
             for (int col : {ProfilesTableModel::ColType,
-                            ProfilesTableModel::ColTestResult, ProfilesTableModel::ColTraffic}) {
+                            ProfilesTableModel::ColTestResult, ProfilesTableModel::ColTraffic,
+                            ProfilesTableModel::ColSpeed}) {
                 if (group->calculated_column_width.size() > col &&
                     group->calculated_column_width[col] > hHeader->sectionSize(col)) {
                     hHeader->setSectionResizeMode(col, QHeaderView::Fixed);

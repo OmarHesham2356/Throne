@@ -74,8 +74,19 @@ namespace Configs
         }
     }
 
-    QString Profile::DisplayTraffic() const {
-        if (traffic_downlink + traffic_uplink == 0) return "";
+    // Dedicated speed column: always shows the last speed-test result,
+    // unlike DisplayTestResult which only includes it when enabled.
+    QString Profile::DisplaySpeed() const {
+        QString result;
+        if (!dl_speed.isEmpty() && dl_speed != "N/A") result += UNICODE_LRO + QString("↓") + dl_speed;
+        if (!ul_speed.isEmpty() && ul_speed != "N/A") {
+            if (!result.isEmpty()) result += " ";
+            result += QString("↑") + ul_speed;
+        }
+        return result;
+    }
+
+    QString Profile::DisplayTraffic() const {        if (traffic_downlink + traffic_uplink == 0) return "";
         return UNICODE_LRO + QString("%1↑ %2↓").arg(ReadableSize(traffic_uplink), ReadableSize(traffic_downlink));
     }
 

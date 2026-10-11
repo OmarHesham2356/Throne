@@ -461,6 +461,17 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
             action.method = GroupSortMethod::ByName;
         } else if (logicalIndex == ProfilesTableModel::ColTestResult) {
             action.method = GroupSortMethod::ByTestResult;
+        } else if (logicalIndex == ProfilesTableModel::ColSpeed) {
+            // Dedicated speed column: always sort by download speed,
+            // fastest first on the first click (inverted default toggle).
+            auto group = Configs::dataManager->groupsRepo->CurrentGroup();
+            if (group != nullptr) {
+                group->test_sort_by = Configs::testBy::dlSpeed;
+                Configs::dataManager->groupsRepo->Save(group);
+            }
+            action.method = GroupSortMethod::ByTestResult;
+            action.descending = (proxy_last_order != logicalIndex);
+            proxy_last_order = (proxy_last_order == logicalIndex) ? -1 : logicalIndex;
         } else if (logicalIndex == ProfilesTableModel::ColTraffic) {
             action.method = GroupSortMethod::ByTraffic;
         } else {
@@ -988,6 +999,129 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     connect(ui->actionSpeedtest_Group, &QAction::triggered, this, [=,this]()
     {
         testRunner->runSpeedTests(Configs::dataManager->groupsRepo->CurrentGroup()->Profiles());
+    });
+    // Speed-scan available: URL-test the whole group first, then speed-test
+    // only the servers that return a ping (available), sort fastest-first
+    // and highlight the winner.
+    connect(ui->actionSpeedscan_Available, &QAction::triggered, this, [=,this]()
+    {
+        if (testRunner->isRunning()) {
+            MessageBoxWarning(software_name, tr("A test is already running. Stop it first."));
+            return;
+        }
+        auto group = Configs::dataManager->groupsRepo->CurrentGroup();
+        if (group == nullptr) return;
+        const int groupId = group->id;
+        const QList<int> all = group->Profiles();
+        if (all.isEmpty()) {
+            MessageBoxWarning(software_name, tr("The current group is empty."));
+            return;
+        }
+        MW_show_log(tr("URL-testing %1 server(s), then speed-scanning the available ones...").arg(all.size()));
+        testRunner->runUrlTests(all, [=,this]() {
+            auto g = Configs::dataManager->groupsRepo->GetGroup(groupId);
+            if (g == nullptr) return;
+            QList<int> avail;
+            for (int id : g->Profiles()) {
+                auto prof = Configs::dataManager->profilesRepo->GetProfile(id);
+                if (prof != nullptr && prof->IsWorking()) avail << id;
+            }
+            if (avail.isEmpty()) {
+                runOnUiThread([=,this] {
+                    MessageBoxWarning(software_name, tr("No available servers: none returned a ping."));
+                });
+                return;
+            }
+            MW_show_log(tr("%1 server(s) available, speed-testing them...").arg(avail.size()));
+            testRunner->runSpeedTests(avail, false, [=,this]() {
+            // onFinished fires on a worker thread; TestRunner queues its own
+            // list refresh right after, so sort+save here is seen by it.
+            auto g2 = Configs::dataManager->groupsRepo->GetGroup(groupId);
+            if (g2 == nullptr) return;
+            g2->test_sort_by = Configs::testBy::dlSpeed;
+            GroupSortAction action;
+            action.method = GroupSortMethod::ByTestResult;
+            action.descending = true;
+            if (!g2->SortProfiles(action)) return;
+            Configs::dataManager->groupsRepo->Save(g2);
+            QString bestName, bestSpeed;
+            for (int id : g2->Profiles()) {
+                auto prof = Configs::dataManager->profilesRepo->GetProfile(id);
+                if (prof != nullptr && !prof->dl_speed.isEmpty() && prof->dl_speed != "N/A") {
+                    bestName = prof->outbound->DisplayTypeAndName();
+                    bestSpeed = prof->dl_speed;
+                    break;
+                }
+            }
+            runOnUiThread([=,this] {
+                refresh_proxy_list({}, true);
+                if (!bestName.isEmpty()) {
+                    MW_show_log(tr("Fastest server: %1 (%2) - selected, row 1.").arg(bestName, bestSpeed));
+                } else {
+                    MW_show_log(tr("Speed-scan finished, but no server passed the speed test."));
+                }
+                // Let TestRunner's own trailing refresh land first.
+                setTimeout([=,this] {
+                    if (ui->profilesTableView->model()->rowCount() > 0) ui->profilesTableView->selectRow(0);
+                }, this, 500);
+            });
+            });
+        });
+    });
+    // Fast path: skip the URL test, speed-test servers that already have a
+    // ping from an earlier test. Dead ones simply fail the speed test.
+    connect(ui->actionSpeedscan_Stored, &QAction::triggered, this, [=,this]()
+    {
+        if (testRunner->isRunning()) {
+            MessageBoxWarning(software_name, tr("A test is already running. Stop it first."));
+            return;
+        }
+        auto group = Configs::dataManager->groupsRepo->CurrentGroup();
+        if (group == nullptr) return;
+        const int groupId = group->id;
+        QList<int> avail;
+        for (int id : group->Profiles()) {
+            auto prof = Configs::dataManager->profilesRepo->GetProfile(id);
+            if (prof != nullptr && prof->IsWorking()) avail << id;
+        }
+        if (avail.isEmpty()) {
+            MessageBoxWarning(software_name, tr("No server has a ping yet. Run the full speed-scan (with URL test) first."));
+            return;
+        }
+        MW_show_log(tr("Speed-testing %1 server(s) with a ping...").arg(avail.size()));
+        testRunner->runSpeedTests(avail, false, [=,this]() {
+            // onFinished fires on a worker thread; TestRunner queues its own
+            // list refresh right after, so sort+save here is seen by it.
+            auto g2 = Configs::dataManager->groupsRepo->GetGroup(groupId);
+            if (g2 == nullptr) return;
+            g2->test_sort_by = Configs::testBy::dlSpeed;
+            GroupSortAction action;
+            action.method = GroupSortMethod::ByTestResult;
+            action.descending = true;
+            if (!g2->SortProfiles(action)) return;
+            Configs::dataManager->groupsRepo->Save(g2);
+            QString bestName, bestSpeed;
+            for (int id : g2->Profiles()) {
+                auto prof = Configs::dataManager->profilesRepo->GetProfile(id);
+                if (prof != nullptr && !prof->dl_speed.isEmpty() && prof->dl_speed != "N/A") {
+                    bestName = prof->outbound->DisplayTypeAndName();
+                    bestSpeed = prof->dl_speed;
+                    break;
+                }
+            }
+            runOnUiThread([=,this] {
+                refresh_proxy_list({}, true);
+                if (!bestName.isEmpty()) {
+                    MW_show_log(tr("Fastest server: %1 (%2) - selected, row 1.").arg(bestName, bestSpeed));
+                } else {
+                    MW_show_log(tr("Speed-scan finished, but no server passed the speed test."));
+                }
+                // Let TestRunner's own trailing refresh land first.
+                setTimeout([=,this] {
+                    if (ui->profilesTableView->model()->rowCount() > 0) ui->profilesTableView->selectRow(0);
+                }, this, 500);
+            });
+        });
     });
     connect(ui->actionResolve_Selected_Out_IP, &QAction::triggered, this, [=,this]() {
         testRunner->runIpTests(get_now_selected_list());

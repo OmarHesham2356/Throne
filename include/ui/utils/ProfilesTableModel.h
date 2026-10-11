@@ -21,6 +21,7 @@ public:
         ColName,
         ColTestResult,
         ColTraffic,
+        ColSpeed,
         ColumnCount,
     };
 

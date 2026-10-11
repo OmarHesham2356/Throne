@@ -119,6 +119,7 @@ QVariant ProfilesTableModel::data(const QModelIndex &index, int role) const {
         case ColName: return profile->outbound ? profile->outbound->name : QString();
         case ColTestResult: return profile->DisplayTestResult();
         case ColTraffic: return profile->DisplayTraffic();
+        case ColSpeed: return profile->DisplaySpeed();
         default: return {};
         }
     }
@@ -150,6 +151,7 @@ QVariant ProfilesTableModel::headerData(int section, Qt::Orientation orientation
         case ColName: return tr("Name");
         case ColTestResult: return tr("Test Result");
         case ColTraffic: return tr("Traffic");
+        case ColSpeed: return tr("Speed");
         default: return {};
         }
     }

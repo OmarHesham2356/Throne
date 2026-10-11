@@ -76,6 +76,8 @@ namespace Configs {
 
         [[nodiscard]] QString DisplayTestResult() const;
 
+        [[nodiscard]] QString DisplaySpeed() const;
+
         [[nodiscard]] QColor DisplayLatencyColor() const;
 
         [[nodiscard]] QString DisplayTraffic() const;

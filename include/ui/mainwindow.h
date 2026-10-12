@@ -157,6 +157,12 @@ public:
     void refresh_proxy_list(const QList<int> &ids = {}, bool mayNeedReset = false,
                             RefreshAnchor anchor = RefreshAnchor::KeepPlace);
 
+    // Speed-scan: two-round stable speed test of the given servers, then sort
+    // fastest-stable-first and highlight the winner. Skips servers that
+    // already have a speed result (stop any time; re-running resumes).
+    void speedscan_run_stable(int groupId, const QList<int> &ids);
+    void speedscan_finish(int groupId);
+
     void show_group(int gid);
 
     void show_group_tab_menu(const QPoint &tabBarPos);
